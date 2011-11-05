@@ -1,0 +1,160 @@
+<html lang="en">
+  <head>
+    <style>
+      html { height: 100% }
+      body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 0.875em;
+        font-weight: 400;
+        line-height: 1.5em;
+        vertical-align: baseline;
+        background: white;
+        overflow-y: scroll;
+        text-rendering: optimizeLegibility;
+        color: #3D4459;
+      }
+      
+      #subscriptions {
+        float: left;
+        margin: 0 10px 0 10px;
+        clear: right;
+      }
+    
+      #tweets {
+        width: 350px;
+      }
+      
+      #tweets li {
+        -webkit-border-radius: 10px;
+        -moz-border-radius: 10px;
+        border-radius: 10px;
+        box-shadow: 1px 2px 6px rgba(0,0,0, 0.5);
+        -moz-box-shadow: 1px 2px 6px rgba(0,0,0, 0.5);
+        -webkit-box-shadow: 1px 2px 6px rgba(0,0,0, 0.5);
+        padding: 10;
+        
+        overflow: auto;
+        clear: both;
+      }
+      #tweet li img.avatar {
+        float: left;
+        margin: 5px;
+      }
+      
+      #tweets li .text {
+        float: right;
+        width: 200px;
+      }
+    </style>
+    
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
+    <script src="http://js.pusherapp.com/1.9/pusher.min.js"></script>
+    <script>
+      Pusher.channel_auth_endpoint = 'http://www.leggetter.co.uk/pusher/mozfest/auth/';
+      Pusher.channel_auth_transport = 'jsonp';
+    
+      var pusher = new Pusher("c98b08a7c923700b55dc");
+      var display = null;
+      var subDisplay = null;
+      
+      Pusher.log = function(msg) {
+        if(console && console.log) {
+          console.log(msg);
+        }
+      }
+      $(document).ready(function() {
+        
+        display = new RealTimeDataDisplay();
+        subDisplay = new SubscriptionDisplay();
+        
+        $("#tweet_search").submit(function() {
+          
+          var search = $("#search_value").val();
+          search = escape(search);
+          
+          setTimeout(function() {
+            subscribe(search);
+          }, 0);
+          
+          return false;
+        });
+        
+        subscribe('mozfest');
+        subscribe('mozhelp');
+      });
+      
+      function subscribe(search) {
+        if( !pusher.channel(search) ) {
+          var channel = pusher.subscribe(search);
+          
+          var el = subDisplay.add(channel.name);
+          el.click(function(){
+            var channelName = $(this).text();
+            pusher.unsubscribe(channelName);
+            subDisplay.remove(channelName);
+          });
+          
+          channel.bind('tweet', function(data) {
+            display.displayTweet(data);
+          });
+        }
+      };
+      
+      var SubscriptionDisplay = function() {
+        this.subUl = $("#subscriptions");
+      };
+      
+      SubscriptionDisplay.prototype.add = function(channelName) {
+        var li = $("<li data-channel-name='" + channelName + "'>" + channelName + "</li>");
+        this.subUl.append(li);
+        return li;
+      };
+      
+      SubscriptionDisplay.prototype.remove = function(channelName) {
+        var li = this.subUl.find("li[data-channel-name='" + channelName + "']");
+        li.remove();
+      };
+      
+      var RealTimeDataDisplay = function() {
+        this.tweetUl = $("#tweets");
+        this.tweetCount = 0;
+        this.pendingTweets = [];
+        
+        var self = this;
+        this.tweetInterval = setInterval(function() {
+          self.showPendingTweet();
+        }, 1000);
+      };
+      
+      RealTimeDataDisplay.prototype.displayTweet = function(tweet) {
+        this.pendingTweets.push(tweet);
+      };
+      
+      RealTimeDataDisplay.prototype.showPendingTweet = function() {
+        if(this.pendingTweets.length) {
+          var tweet = this.pendingTweets.shift();
+          this.tweetUl.prepend("<li>" +
+            "<img class='avatar' src='" + tweet.user.profile_image_url + "' />" +
+            "<div class='text'>" + tweet.text + "</div>" +
+            "</li>");
+          ++this.tweetCount;
+          displayed = true;
+
+          if(this.tweetCount > 50) {
+            this.tweetUl.find("li:last-child").remove();
+          }
+        }
+      };
+    </script>
+  </head>
+  <body>
+    <form id="tweet_search">
+      <input type="text" value="hello" id="search_value" />
+    </form>
+    <ul id="subscriptions"></ul>
+    <ul id="tweets"></ul>
+  </body>
+</html>
